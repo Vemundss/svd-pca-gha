@@ -1,39 +1,48 @@
-import numpy as np 
+import numpy as np
 import tqdm
 
 
-def sangers_pca(x,nc=None):
+def sangers_pca(x, nc=None):
     if len(x.shape) > 2:
-        x = np.reshape(x, (x.shape[0],np.size(x)-x.shape[0]))
+        x = np.reshape(x, (x.shape[0], np.size(x) - x.shape[0]))
     if nc is None:
         nc = x.shape[-1]
 
-    kernel=np.random.normal(loc=0.0, scale=1.0, size=(nc,nc))
+    kernel = np.random.normal(loc=0.0, scale=0.1, size=(nc, nc))
+
+    #print(np.linalg.det(kernel))
+    #kernel/=np.linalg.det(kernel)
+    kernel = np.abs(kernel)
 
     # center data, i.e. subtract mean
-    x -= np.mean(x,axis=0)
+    x -= np.mean(x, axis=0)
 
-    return _sangers_training_loop(x,kernel)
+    return _sangers_training_loop(x, kernel)
 
 
-def _sangers_training_loop(x,kernel):
+def _sangers_training_loop(x, kernel):
     mb_size = 128
-    epochs = 1000
-    n = 10000 # initial inverse learning rate (must be high, otherwise nan)
-    n_jump = 10
+    epochs = 10000
+    n = 10000  # initial inverse learning rate (must be high, otherwise nan)
+    n_jump = 1
 
     print("Sangers initial kernel: \n", np.around(kernel, decimals=2))
 
     for i in tqdm.trange(epochs):
-        for j in range(int(x.shape[0] / 8)):
-            mb = x[j*mb_size:(j+1)*mb_size]
+        for j in range(int(x.shape[0] / mb_size)):
+            mb = x[j * mb_size : (j + 1) * mb_size]
             # forward pass
-            y = np.dot(x,kernel) # dim[mb_size,E] x [E,E] => [mb_size,E]
+            y = np.dot(mb, kernel)  # dim[mb_size,E] x [E,E] => [mb_size,E]
 
-            mb_update = _sangers_rule(x,y,kernel)
-            kernel += np.mean(mb_update,axis=0)/n
+            mb_update = _sangers_rule(mb, y, kernel)
+            kernel += np.mean(mb_update, axis=0) / n
 
             n += n_jump
+
+        #print(np.mean(np.abs(mb)))
+        print("mean: {}, max: {}".format(\
+            np.around(np.mean(np.abs(mb_update)),3),\
+            np.around(np.max(np.abs(mb_update))),3))
 
     return kernel
 
@@ -63,44 +72,22 @@ def _sangers_rule(x: np.ndarray, y: np.ndarray, kernel: np.ndarray):
     return mb_update
 
 
-
-
-
-def svd(x,nc=None):
+def svd(x, nc=None):
     if len(x.shape) > 2:
-        x = np.reshape(x, (x.shape[0],np.size(x)-x.shape[0]))
+        x = np.reshape(x, (x.shape[0], np.size(x) - x.shape[0]))
     if nc is None:
         nc = x.shape[-1]
 
     # center data, i.e. subtract mean
-    x -= np.mean(x,axis=0)
+    x -= np.mean(x, axis=0)
 
     # x is a data matrix. first dim is examples, second is explanatory vars
     # i.e. dim[D,E]
     # dot(x.T,x) => [E,D] x [D, E] => [E,E]
-    cov_x = np.dot(x.T,x) / x.shape[0]
+    cov_x = np.dot(x.T, x) / x.shape[0]
 
     return np.linalg.svd(cov_x)
 
 
 def pca():
     return False
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
