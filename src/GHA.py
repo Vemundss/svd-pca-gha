@@ -43,13 +43,18 @@ class GHA(object):
         # dot product
         LT_YC = np.einsum("...ij,...jk->...ik", LT_Y, self._W)
 
-        dW = np.mean((y_xT - LT_YC), axis=0) / self.lr
-        print(dW)
+        dW = np.mean((y_xT - LT_YC), axis=0) * self.lr
         self._W += dW
 
-        # update lr
-        self.lr += self.lr_incr
-        return y
+        return dW
+
+    def update_lr(self):
+        if self.lr > 1:
+            self.lr -= self.lr_incr
+            if self.lr <= 0:
+                self.lr = 0.9
+        else: 
+            self.lr = 1/((1/self.lr) + self.lr_incr)
 
     def inverse(self, y, mean_shift=False):
         # einsum is ordered alphabetically, so ji is a transpose
